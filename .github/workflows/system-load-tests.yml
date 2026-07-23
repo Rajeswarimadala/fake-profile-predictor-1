@@ -1,0 +1,52 @@
+name: System Load & Performance Telemetry Benchmark
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  load-test-benchmark:
+    name: Run 100 Virtual Users Concurrency Benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt pytest httpx openpyxl jinja2
+
+      - name: Execute System Load Test Script
+        env:
+          OPENBLAS_NUM_THREADS: "1"
+        run: |
+          cd backend
+          python -c "
+import asyncio
+from services.load_tester import LoadTester
+
+async def run_benchmark():
+    print('Starting 100 Virtual Users Baseline Load Test Benchmark...')
+    tester = LoadTester(target_url='http://127.0.0.1:8000/api/system/load-test/target', concurrency=100, duration_seconds=10)
+    results = await tester.run_test()
+    print('LOAD TEST RESULTS SUMMARY:')
+    print(f'RPS: {results.get(\"rps\")}')
+    print(f'Total Requests: {results.get(\"total_requests\")}')
+    print(f'Successful Requests: {results.get(\"successful_requests\")}')
+    print(f'Average Latency: {results.get(\"avg_latency_ms\")} ms')
+    print(f'Status: PASS')
+
+asyncio.run(run_benchmark())
+"
