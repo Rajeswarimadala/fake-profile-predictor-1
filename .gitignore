@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+.venv/
+env/
+venv/
+
+# Build outputs
+dist/
+build/
+*.apk
+*.exe
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# System & IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+logs/

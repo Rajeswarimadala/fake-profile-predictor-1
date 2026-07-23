@@ -1,0 +1,122 @@
+name: Live GitHub Pages Deployment & Selenium E2E Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-deploy-and-test:
+    name: Build, Deploy to Pages & Execute Selenium Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # Stage 1: Repository Checkout
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      # Stage 2: Dependency Installation
+      - name: Set up Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      # Stage 3: Build Application
+      - name: Build Web Application
+        run: |
+          cd frontend
+          npm run build
+          # Ensure index.html exists in build directory
+          ls -la dist/
+
+      # Stage 4: Static Analysis
+      - name: Perform ESLint Code Analysis
+        run: |
+          cd frontend
+          npx eslint . || true
+
+      # Stage 5: Deploy to GitHub Pages
+      - name: Deploy Frontend Build to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./frontend/dist
+          keep_files: false
+
+      # Stage 6 & 7: Wait & Verify Live Deployment Availability
+      - name: Verify Live GitHub Pages Deployment Availability
+        env:
+          BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+        run: |
+          echo "Targeting LIVE Deployment URL: $BASE_URL"
+          
+          # Retry loop waiting for deployment HTTP 200 response
+          max_retries=12
+          count=0
+          until curl --output /dev/null --silent --head --fail "$BASE_URL"; do
+            if [ $count -eq $max_retries ]; then
+              echo "CRITICAL: Live deployment at $BASE_URL failed to respond within timeout!"
+              echo "Publishing deployment diagnostics..."
+              curl -Iv "$BASE_URL" || true
+              exit 1
+            fi
+            echo "Waiting for GitHub Pages CDN propagation... (Attempt $((count+1))/$max_retries)"
+            sleep 10
+            count=$((count+1))
+          done
+          
+          echo "Deployment Verification Succeeded! HTTP 200 OK received at $BASE_URL"
+
+      # Stage 8: Run Selenium E2E Tests against LIVE URL
+      - name: Set up Python Environment for Selenium
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Selenium Framework Requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r web_automation/requirements.txt
+
+      - name: Execute Live Selenium E2E Test Suite
+        env:
+          BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          OPENBLAS_NUM_THREADS: "1"
+        run: |
+          cd web_automation
+          python run_web_tests.py
+
+      # Stage 9, 10, 11: Upload All Artifacts
+      - name: Upload Test Deliverable Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Live_Selenium_Test_Results
+          path: Test Results/
+          retention-days: 30
+
+      # Stage 12 & 13: Publish Summary & Store Historical Results
+      - name: Publish Action Execution Summary
+        if: always()
+        run: |
+          if [ -f web_automation/github_summary.md ]; then
+            cat web_automation/github_summary.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Live Selenium Test Suite Execution Finished" >> $GITHUB_STEP_SUMMARY
+          fi

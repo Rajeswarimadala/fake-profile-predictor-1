@@ -1,0 +1,16 @@
+{
+  "concurrency": 4,
+  "execution_mode": "simulated",
+  "appium_server_url": "http://127.0.0.1:4723",
+  "apk_path": "../mobile/build/app/outputs/flutter-apk/app-debug.apk",
+  "device_name": "Android Emulator",
+  "platform_name": "Android",
+  "platform_version": "13.0",
+  "app_package": "com.example.aiguard",
+  "app_activity": "com.example.aiguard.MainActivity",
+  "emulator_avd": "Pixel_6_API_33",
+  "timeouts": {
+    "implicit_wait": 10,
+    "command_timeout": 60
+  }
+}

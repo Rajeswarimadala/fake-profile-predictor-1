@@ -1,0 +1,9 @@
+{
+  "base_url": "https://Rajeswarimadala.github.io/fake-profile-predictor-1/",
+  "fallback_url": "http://localhost:5173",
+  "browser": "chrome",
+  "headless": true,
+  "implicit_wait": 10,
+  "page_load_timeout": 30,
+  "window_size": "1920,1080"
+}
