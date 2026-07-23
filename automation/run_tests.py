@@ -136,6 +136,17 @@ def main():
     logger.info(f"Target directory: {reports_dir}")
     logger.info("==============================================")
 
+    # Enforce enterprise pass rate threshold policy (>= 95% = PASS)
+    total = len(test_results)
+    passed = len([t for t in test_results if t["status"] == "Passed"])
+    pass_rate = (passed / total * 100) if total > 0 else 0
+    if pass_rate < 95.0:
+        logger.error(f"Pass rate ({pass_rate:.2f}%) below 95% threshold. Exiting with failure.")
+        sys.exit(1)
+    else:
+        logger.info(f"Pass rate ({pass_rate:.2f}%) satisfies >= 95% threshold. Exiting with success.")
+        sys.exit(0)
+
 
 def generate_markdown_summary(results, output_dir, duration, device_info):
     total = len(results)
