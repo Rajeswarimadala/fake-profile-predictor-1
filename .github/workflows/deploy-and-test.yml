@@ -8,13 +8,20 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build-deploy-and-test:
     name: Build, Deploy to Pages & Execute Selenium Tests
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -50,15 +57,18 @@ jobs:
           cd frontend
           npx eslint . || true
 
-      # Stage 5: Deploy to GitHub Pages
-      - name: Deploy Frontend Build to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      # Stage 5: Upload Pages Artifact (Native GitHub Actions Pages Deployment)
+      - name: Upload GitHub Pages Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./frontend/dist
-          keep_files: false
+          path: './frontend/dist'
 
-      # Stage 6 & 7: Wait & Verify Live Deployment Availability
+      # Stage 6: Deploy to GitHub Pages via Actions
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      # Stage 7: Wait & Verify Live Deployment Availability
       - name: Verify Live GitHub Pages Deployment Availability
         env:
           BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
